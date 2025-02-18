@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.log
+venv/
+data/
+STEP.txt
