@@ -6,17 +6,10 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 from logger import setup_logger
 
+from config import RSS_SOURCES, DATA_DIR, ARCHIVE_FILE
+
 # 初始化日志记录器
 logger = setup_logger(__name__)
-
-# 配置常量
-RSS_SOURCES = {
-    "Yahoo Finance": "http://finance.yahoo.com/rss/topstories",
-    "Business Insider": "https://www.businessinsider.com/rss",
-    "CNBC": "https://www.cnbc.com/id/100003114/device/rss/rss.html"
-}
-DATA_DIR = "data"
-ARCHIVE_FILE = os.path.join(DATA_DIR, "news_archive.pkl")
 
 def setup_data_directory() -> None:
     """初始化数据存储目录"""
@@ -117,7 +110,8 @@ def main() -> None:
             logger.warning("No new entries to process")
     except Exception as e:
         logger.critical("Fatal error in main execution", exc_info=True)
-        raise
+        sys.exit(1)
+        #raise
 
 if __name__ == "__main__":
     main()
