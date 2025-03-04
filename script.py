@@ -1,7 +1,48 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import time
 from datetime import datetime, timedelta
+from typing import Optional
+from config import DEEPSEEK_API_KEY, API_ENDPOINT, HEADERS
+
+# ======================
+# 摘要生成函数
+# ======================
+def generate_summary(content: str) -> Optional[str]:
+    """
+    调用DeepSeek API生成摘要
+    返回格式："要点1\n要点2\n要点3"
+    """
+    if not content or len(content) < 100:  # 过滤无效内容
+        print("内容过短，跳过摘要生成")
+        return None
+    payload = {
+        "text": content,
+        "parameters": {
+            "length": "brief",  # 可选项：brief/standard/detailed
+            "style": "bullet_points",  # 可选项：paragraph/bullet_points
+            "language": "english"  # 根据内容语言调整
+        }
+    }
+    try:
+        response = requests.post(
+            API_ENDPOINT,
+            json=payload,
+            headers=HEADERS,
+            timeout=15
+        )
+        response.raise_for_status()
+        # 解析响应
+        summary = "\n".join(response.json()["points"])  # 假设响应格式为 {"points": [...]}
+        return summary.strip()
+    except requests.exceptions.RequestException as e:
+        print(f"API请求失败: {str(e)}")
+        return None
+    except KeyError:
+        print("响应格式解析失败")
+        return None
 
 # ======================
 # 通用函数
@@ -18,6 +59,33 @@ def fetch_html_content(url):
     except Exception as e:
         print(f"Error fetching {url}: {str(e)}")
         return None
+
+# ======================
+# 增强型内容提取流程
+# ======================
+def enhanced_content_extraction(row) -> pd.Series:
+    """
+    集成内容提取和摘要生成的复合处理函数
+    返回包含content和summary的Series
+    """
+    # 第一步：提取正文内容
+    url = row['link']
+    parser = url_matcher(url)
+    content = parser(url) if parser else None
+    
+    # 第二步：生成摘要
+    summary = None
+    if content:
+        summary = generate_summary(content)
+        # 添加安全间隔防止速率限制
+        time.sleep(0.5)  # 根据API限制调整
+    
+    return pd.Series({
+        'content': content,
+        'summary': summary,
+        'if_summ': pd.notna(summary)  # 自动设置状态标记
+    })
+
 
 # ======================
 # 各网站专用解析函数
