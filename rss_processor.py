@@ -1,8 +1,10 @@
 import os
+import calendar
 import zipfile
 import feedparser
 import pandas as pd
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import List, Dict
 from logger import setup_logger
 
@@ -36,11 +38,21 @@ def fetch_single_feed(source: str, url: str) -> List[Dict]:
 def process_entry(source: str, entry: Dict) -> Dict:
     """处理单个RSS条目为结构化数据"""
     try:
+        # 获取 published_parsed 并计算 timestamp
+        published_parsed = entry.get('published_parsed')
+        utc_time = None
+        eastern_time = None
+        if published_parsed:
+            timestamp = calendar.timegm(published_parsed)
+            utc_time = datetime.utcfromtimestamp(timestamp)
+            eastern_time = utc_time.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZoneInfo('America/New_York'))
+        # 构建处理后的数据
         processed = {
             'source': source,
             'title': entry.get('title', ''),
             'link': entry.get('link', ''),
-            'published': entry.get('published', ''),
+            'utc_time': utc_time,
+            'eastern_time': eastern_time,
             'description': entry.get('description', ''),
             'content': entry.get('content', [{}])[0].get('value', '') if entry.get('content') else '',
             'guid': entry.get('guid', ''),
@@ -61,8 +73,13 @@ def fetch_all_feeds() -> pd.DataFrame:
         all_entries.extend([process_entry(source, entry) for entry in entries])
     if not all_entries:
         logger.warning("No entries found in any feed")
-    return pd.DataFrame(all_entries)
-
+        return pd.DataFrame()
+    df = pd.DataFrame(all_entries)
+    if 'utc_time' in df.columns:
+        df['utc_time'] = pd.to_datetime(df['utc_time'])
+    if 'eastern_time' in df.columns:
+        df['eastern_time'] = pd.to_datetime(df['eastern_time'])
+    return df
 
 def merge_with_archive(new_df: pd.DataFrame) -> pd.DataFrame:
     """合并新旧数据并去重"""
@@ -71,7 +88,8 @@ def merge_with_archive(new_df: pd.DataFrame) -> pd.DataFrame:
             logger.info(f"Merging with existing archive: {ARCHIVE_FILE}")
             archive_df = pd.read_pickle(ARCHIVE_FILE)  # 修改读取方式
             combined_df = pd.concat([archive_df, new_df], ignore_index=True)
-            combined_df = combined_df.drop_duplicates(subset=['guid'], keep='last')
+            combined_df = combined_df.drop_duplicates(subset=['title'], keep='last')
+            #combined_df = combined_df.drop_duplicates(subset=['link'], keep='last')
             return combined_df
         else:
             logger.info("No existing archive found, creating new one")
