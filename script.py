@@ -1,5 +1,4 @@
 import re
-<<<<<<< HEAD
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -54,7 +53,6 @@ def generate_summary(content: str) -> Optional[str]:
 # ======================
 # 增强型内容提取流程
 # ======================
->>>>>>> de2b552128c11554b19196800339119583cbfa60
 def enhanced_content_extraction(row) -> pd.Series:
     """
     集成内容提取和摘要生成的复合处理函数
@@ -66,18 +64,12 @@ def enhanced_content_extraction(row) -> pd.Series:
     content = parser(url) if parser else None
     # 第二步：生成摘要
     summary = None
-<<<<<<< HEAD
-=======
     """
->>>>>>> de2b552128c11554b19196800339119583cbfa60
     if content:
         summary = generate_summary(content)
         # 添加安全间隔防止速率限制
         time.sleep(0.5)  # 根据API限制调整
-<<<<<<< HEAD
-=======
     """
->>>>>>> de2b552128c11554b19196800339119583cbfa60
     return pd.Series({
         'content': content,
         'summary': summary,
@@ -96,11 +88,7 @@ def process_links():
         return pd.DataFrame()
     # 筛选需要处理的记录
     now = pd.Timestamp.now(tz='UTC')
-<<<<<<< HEAD
-    time_threshold = now - pd.Timedelta(hours=4)
-=======
     time_threshold = now - pd.Timedelta(hours=24)
->>>>>>> de2b552128c11554b19196800339119583cbfa60
     mask = (
         (archive_df['eastern_time'] >= time_threshold) &
         (~archive_df['if_summ'])
@@ -192,151 +180,8 @@ def extract_cnbc_content(url):
     if not html:
         return None
     soup = BeautifulSoup(html, 'html.parser')
-<<<<<<< HEAD
     # CNBC的正文通常在<article class='ArticleBody-articleBody'>中
     article_body = soup.find('article', class_='ArticleBody-articleBody')
     return article_body.get_text(separator='\n') if article_body else None
-
-
-
-
-def extract_yahoo_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    content_div = soup.find("div", {"class": "caas-body"})
-    paragraphs = content_div.find_all("p")
-    content = "\n".join([p.text for p in paragraphs])
-    content = re.sub(r'Most Read from Bloomberg Businessweek[\s\S]*$', '', content)
-    content = re.sub(r'(Most Read from Bloomberg(?:\n.*){5})', '', content)
-    return content
-
-def extract_cnbc_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    key_points_section = soup.find('div', {'class': 'RenderKeyPoints-list'})
-    article_body_div = soup.find('div', {"data-module": "ArticleBody"})
-    if key_points_section == None:
-        content = article_body_div.text
-    else:
-        key_points = [li.text for li in key_points_section.find_all('li')]
-        content = "Key points:\n" +  "\n".join(key_points) + "\n\n" + article_body_div.text
-    return content
-
-def extract_insider_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    key_points_section = soup.find('ul', {'class': 'summary-list'})
-    json_ld = soup.find('script', type='application/ld+json').string
-    json_data = json.loads(json_ld)
-    content = json_data.get('articleBody', '')
-    article_body_div = soup.find('div', {"data-module": "ArticleBody"})
-    if key_points_section != None:
-        key_points = [li.text for li in key_points_section.find_all('li')]
-        content = "Key points:\n" +  "\n".join(key_points) + "\n\n" + content
-    return content
-
-
-def extract_yahoo_content(url):
-    """从 Yahoo Finance 提取新闻正文内容"""
-    try:
-        # 使用 fetch_html_content 获取网页内容
-        html = fetch_html_content(url)
-        if not html:
-            print(f"无法获取网页内容：{url}")
-            return None
-        # 解析 HTML 内容
-        soup = BeautifulSoup(html, 'html.parser')
-        # 定位正文内容所在的 div
-        body_div = soup.find('div', {'class': 'body yf-tsvcyu'})
-        if not body_div:
-            print(f"未找到正文内容：{url}")
-            return None
-        # 提取所有段落文本
-        paragraphs = body_div.find_all('p')
-        content = "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
-        # 清理无关内容
-        content = re.sub(r'Most Read from Bloomberg Businessweek[\s\S]*$', '', content)
-        content = re.sub(r'(Most Read from Bloomberg(?:\n.*){5})', '', content)
-        # 返回清理后的正文
-        return content.strip()
-    except Exception as e:
-        print(f"解析失败：{url}，错误：{str(e)}")
-        return None
-=======
-    # 定位新闻正文所在的容器
-    article_body = soup.find('div', class_='ArticleBody-articleBody')
-    if not article_body:
-        return None
-    # 提取所有段落文本
-    paragraphs = article_body.find_all('p')
-    content = '\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
-    return content if content else None
-
-
-
-
-def extract_yahoo_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    content_div = soup.find("div", {"class": "caas-body"})
-    paragraphs = content_div.find_all("p")
-    content = "\n".join([p.text for p in paragraphs])
-    content = re.sub(r'Most Read from Bloomberg Businessweek[\s\S]*$', '', content)
-    content = re.sub(r'(Most Read from Bloomberg(?:\n.*){5})', '', content)
-    return content
-
-def extract_cnbc_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    key_points_section = soup.find('div', {'class': 'RenderKeyPoints-list'})
-    article_body_div = soup.find('div', {"data-module": "ArticleBody"})
-    if key_points_section == None:
-        content = article_body_div.text
-    else:
-        key_points = [li.text for li in key_points_section.find_all('li')]
-        content = "Key points:\n" +  "\n".join(key_points) + "\n\n" + article_body_div.text
-    return content
-
-def extract_insider_article(article_url):
-    article_data = requests.get(article_url, headers={'user-agent': 'Mozilla/5.0'})
-    soup = BeautifulSoup(article_data.content, 'html.parser')
-    key_points_section = soup.find('ul', {'class': 'summary-list'})
-    json_ld = soup.find('script', type='application/ld+json').string
-    json_data = json.loads(json_ld)
-    content = json_data.get('articleBody', '')
-    article_body_div = soup.find('div', {"data-module": "ArticleBody"})
-    if key_points_section != None:
-        key_points = [li.text for li in key_points_section.find_all('li')]
-        content = "Key points:\n" +  "\n".join(key_points) + "\n\n" + content
-    return content
-
-
-def extract_yahoo_content(url):
-    """从 Yahoo Finance 提取新闻正文内容"""
-    try:
-        # 使用 fetch_html_content 获取网页内容
-        html = fetch_html_content(url)
-        if not html:
-            print(f"无法获取网页内容：{url}")
-            return None
-        # 解析 HTML 内容
-        soup = BeautifulSoup(html, 'html.parser')
-        # 定位正文内容所在的 div
-        body_div = soup.find('div', {'class': 'body yf-tsvcyu'})
-        if not body_div:
-            print(f"未找到正文内容：{url}")
-            return None
-        # 提取所有段落文本
-        paragraphs = body_div.find_all('p')
-        content = "\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
-        # 清理无关内容
-        content = re.sub(r'Most Read from Bloomberg Businessweek[\s\S]*$', '', content)
-        content = re.sub(r'(Most Read from Bloomberg(?:\n.*){5})', '', content)
-        # 返回清理后的正文
-        return content.strip()
-    except Exception as e:
-        print(f"解析失败：{url}，错误：{str(e)}")
-        return None
->>>>>>> de2b552128c11554b19196800339119583cbfa60
 
 
