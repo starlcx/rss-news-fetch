@@ -1,54 +1,72 @@
 import re
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-
-
-# ======================
-# 增强型内容提取流程
-# ======================
-=======
+import os
 import json
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from openai import OpenAI
+from typing import Optional
+
+from config import DEEPSEEK_API_KEY, client
 
 # ======================
-# 摘要生成函数
+# DeepSeek API 配置（更新版）
 # ======================
+
 def generate_summary(content: str) -> Optional[str]:
     """
-    调用DeepSeek API生成摘要
-    返回格式："要点1\n要点2\n要点3"
+    使用DeepSeek API生成新闻摘要
+    参数：
+        content (str): 新闻正文内容
+    返回：
+        str: 生成的摘要文本（项目符号列表形式），失败时返回None
     """
-    if not content or len(content) < 100:  # 过滤无效内容
+    # 输入验证
+    if not content or len(content) < 100:
         print("内容过短，跳过摘要生成")
         return None
-    payload = {
-        "text": content,
-        "parameters": {
-            "length": "brief",  # 可选项：brief/standard/detailed
-            "style": "bullet_points",  # 可选项：paragraph/bullet_points
-            "language": "english"  # 根据内容语言调整
-        }
-    }
     try:
-        response = requests.post(
-            API_ENDPOINT,
-            json=payload,
-            headers=HEADERS,
-            timeout=15
+        # 构造API请求
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """你是一个专业的新闻摘要生成器。请严格按照以下要求处理：
+1. 使用英文生成摘要
+2. 使用项目符号列表格式（bullet points）
+3. 保持摘要简洁（3-5个要点）
+4. 只包含关键事实信息"""
+                },
+                {
+                    "role": "user",
+                    "content": f"请为以下新闻生成摘要：\n\n{content}"
+                }
+            ],
+            temperature=0.3,  # 控制输出随机性（0-2）
+            max_tokens=2000,   # 控制输出长度
+            timeout=60        # 请求超时时间
         )
-        response.raise_for_status()
         # 解析响应
-        summary = "\n".join(response.json()["points"])  # 假设响应格式为 {"points": [...]}
-        return summary.strip()
-    except requests.exceptions.RequestException as e:
-        print(f"API请求失败: {str(e)}")
+        if response.choices and response.choices[0].message.content:
+            summary = response.choices[0].message.content.strip()
+            return summary
+        print("未收到有效响应内容")
         return None
-    except KeyError:
-        print("响应格式解析失败")
+    except Exception as e:
+        # 处理不同类型的异常
+        error_type = type(e).__name__
+        if "APIConnectionError" in error_type:
+            print(f"API连接失败: {str(e)}")
+        elif "APIError" in error_type:
+            print(f"API服务错误: {str(e)}")
+        elif "Timeout" in error_type:
+            print("API请求超时")
+        else:
+            print(f"未知错误: {str(e)}")
         return None
+
+
 
 # ======================
 # 增强型内容提取流程
@@ -75,7 +93,6 @@ def enhanced_content_extraction(row) -> pd.Series:
         'summary': summary,
         'if_summ': pd.notna(summary)  # 自动设置状态标记
     })
-
 
 # ======================
 # 主处理流程
